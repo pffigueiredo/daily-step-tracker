@@ -1,15 +1,33 @@
+import { db } from '../db';
+import { dailyStepsTable } from '../db/schema';
 import { type UpdateDailyStepsInput, type DailySteps } from '../schema';
+import { eq } from 'drizzle-orm';
 
-export async function updateDailySteps(input: UpdateDailyStepsInput): Promise<DailySteps> {
-    // This is a placeholder declaration! Real code should be implemented here.
-    // The goal of this handler is to update the steps count for an existing daily steps record.
-    // It should also update the updated_at timestamp to the current time.
-    return Promise.resolve({
-        id: input.id,
-        user_id: "placeholder", // This would come from the database
-        date: new Date(), // This would come from the database
+export const updateDailySteps = async (input: UpdateDailyStepsInput): Promise<DailySteps> => {
+  try {
+    // Update the steps count and set updated_at to current timestamp
+    const result = await db.update(dailyStepsTable)
+      .set({
         steps: input.steps,
-        created_at: new Date(), // This would come from the database
-        updated_at: new Date() // Updated timestamp
-    } as DailySteps);
-}
+        updated_at: new Date() // Update the timestamp
+      })
+      .where(eq(dailyStepsTable.id, input.id))
+      .returning()
+      .execute();
+
+    // Check if the record was found and updated
+    if (result.length === 0) {
+      throw new Error(`Daily steps record with id ${input.id} not found`);
+    }
+
+    // Convert date string to Date object to match schema
+    const updatedRecord = result[0];
+    return {
+      ...updatedRecord,
+      date: new Date(updatedRecord.date) // Convert string date to Date object
+    };
+  } catch (error) {
+    console.error('Daily steps update failed:', error);
+    throw error;
+  }
+};
